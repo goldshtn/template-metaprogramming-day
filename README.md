@@ -24,6 +24,8 @@ Hints:
 
 * The inner calculation can be recursive in terms of the current tuple element index with a base case 0
 * Even if the tuples have a mix of integers and floating-point elements, do all the calculations with `double`s
+* Note that the `std::get<I>` function works only if the parameter `I` is a compile-time constant; you can't just write a `for` loop that goes over all the elements in the tuple :-)
+* To find the size of a tuple, use the `std::tuple_size` class template
 
 > If you're really stuck, fill in the following skeleton that contains the core of the recursive solution:
 >
@@ -32,6 +34,7 @@ Hints:
       static double sum_squared_deltas(Tup1 const& tup1, Tup2 const& tup2) { ... }
     };
     template <> struct helper<0> {
+      template <typename Tup1, typename Tup2>
       static double sum_squared_deltas(Tup1 const& tup1, Tup2 const& tup2) { ... }
     };
 
@@ -78,6 +81,8 @@ It linear_search(It first, It last, T const& val) {
 
 There is no single correct solution, because there are many options. For example, you can try using the `void_t` approach, or the `constexpr`-function-based approach, to detect whether the necessary member exists.
 
+> Note: Visual Studio 2015 doesn't have full support for expression SFINAE yet, which means your code might fail if you use the standard `void_t` approach. Try a different compiler.
+
 #### Lab 4: Trait and member detection -- strings aren't containers, arrays are
 
 The solution we built for detecting containers (`is_container`) is adequate for classic STL containers like `vector` and `map`, but it has two issues:
@@ -89,22 +94,23 @@ The solution we built for detecting containers (`is_container`) is adequate for 
 Begin from the following `is_container` detector and fix the two problems above. Test your changes by using static assertions and also by using the `dump` method to print out a string and an array, and make sure you get the desired behavior.
 
 ```
+// NOTE: Your standard library might already define void_t, in which case this declaration is not required
 template <typename T>
 using void_t = void;
 
 template <typename T, typename = void>
-struct is_container : false_t {
+struct is_container : std::false_type {
 };
 
 template <typename T>
-struct is_container<T, void_t<typename T::iterator>> : true_t {
+struct is_container<T, void_t<typename T::iterator>> : std::true_type {
 };
 
 template <typename T>
 void dump(std::ostream& os, T const& val);
 
 template <typename T>
-void dump(std::ostream& os, T const& val, true_t) {
+void dump(std::ostream& os, T const& val, std::true_type) {
     os << "<<< begin container of type " << typeid(T).name() << " >>>\n";
     for (auto const& elem : val) {
         dump(os, elem);
@@ -113,13 +119,13 @@ void dump(std::ostream& os, T const& val, true_t) {
 }
 
 template <typename T>
-void dump(std::ostream& os, T const& val, false_t) {
+void dump(std::ostream& os, T const& val, std::false_type) {
     os << "plain value: " << val << '\n';
 }
 
 template <typename T>
 void dump(std::ostream& os, T const& val) {
-    dump(os, val, bool_t<is_container<T>::value>{});
+    dump(os, val, std::integral_constant<bool, is_container<T>::value>{});
 }
 ```
 
