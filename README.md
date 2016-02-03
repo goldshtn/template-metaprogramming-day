@@ -2,9 +2,19 @@
 
 This document contains accompanying labs for the C++ metaprogramming workshop by [Sasha Goldshtein](http://blog.sashag.net) ([@goldshtn](https://twitter.com/goldshtn)), delivered at the [December 2015 SDP](http://www.seladeveloperpractice.com).
 
+> Solutions for all labs are available in the [solutions.h](C++_TMP/solutions.h) file. Try to only consult the solutions if you get stuck in a particular lab.
+
 #### Lab 1: Variadic templates -- Euclidean distance on tuples
 
-Implement the following function, that finds the Euclidean distance between two points represented by tuples of integers or floating-point values:
+`std::tuple` is a standard library type that represents a collection of heterogenous elements. It is an extension of the old-fashioned `std::pair` type for more than two types. Here are some basic operations you can perform with tuples:
+
+```
+std::tuple<int, std::string, double> tup(42, "Alfred", 3.14);
+tup = make_tuple(17, "Henrietta", 0.0);
+std::string name = std::get<1>(tup);
+```
+
+Implement the following function, that finds the Euclidean distance between two points in *n*-dimensional space represented by tuples of integers or floating-point values:
 
 ```
 template <typename Tup1, typename Tup2>
@@ -22,10 +32,11 @@ auto distance = euclidean_distance(make_tuple(1, 2), make_tuple(4, 6));
 
 Hints:
 
+* Use the `std::get<I>(tup)` function to obtain a tuple element at index `I`
+* Note that the `std::get<I>` function works only if the parameter `I` is a compile-time constant; you can't just write a `for` loop that goes over all the elements in the tuple :-)
 * The inner calculation can be recursive in terms of the current tuple element index with a base case 0
 * Even if the tuples have a mix of integers and floating-point elements, do all the calculations with `double`s
-* Note that the `std::get<I>` function works only if the parameter `I` is a compile-time constant; you can't just write a `for` loop that goes over all the elements in the tuple :-)
-* To find the size of a tuple, use the `std::tuple_size` class template
+* To find the number of elements in a tuple, use the `std::tuple_size` class template (e.g. if `Tup1` is a type of a tuple, `std::tuple_size<Tup1>::value` is the number of elements in the tuple)
 
 > If you're really stuck, fill in the following skeleton that contains the core of the recursive solution:
 >
@@ -40,19 +51,19 @@ Hints:
 
 #### Lab 2: Compile-time computation -- `get<T>` for `tuple`s
 
-C++ 14 introduces a very useful function for working with tuples: `get<T>`. Here’s an example of how it works. Note that if the type doesn’t appear exactly once in the tuple, the result should be a compilation error (not a runtime exception).
+C++ 14 introduces a very useful function for working with tuples: `get<T>`. Here's an example of how it works. Note that if the type doesn't appear exactly once in the tuple, the result should be a compilation error (not a runtime exception).
 
 ```
-auto tup = std::make_tuple(4.0, "hello", 52);
+auto tup = std::make_tuple(4.0, "Evelyn", 52);
 std::get<double>(tup) = 3.0;
-std::cout << std::get<int>(tup) << "\n";
+std::cout << std::get<int>(tup) << '\n';
 ```
 
 If you already have a standard library that supports C++ 14, good for you, but we’re still going to implement this facility ourselves. Here is the general sketch of a possible solution:
 
 * Build a class template `count` that you can invoke as follows: `count<T, T1, T2, ..., Tn>::value` which returns the number of times `T` appears in the list of types that follow. This can be done by a simple specialization for `count<T>` and `count<T, Head, Tail...>`.
 
-* Build a class template `find` that you can invoke as follows: `find<T, T1, T2, ..., Tn>::value` which returns the first index at which the type `T` appears in the list of types that follow. This can be done in a very similar way to `count`.
+* Build a class template `find` that you can invoke as follows: `find<T, T1, T2, ..., Tn>::value` which returns the first index at which the type `T` appears in the list of types that follow. This can be done in a very similar way to `count`. (If `T` doesn't appear in the list of types specified, you can cause a compile-time error or simply return -1.)
 
 Now, the `get<T>` function can use these helpers to call the standard `get<I>` function:
 
@@ -81,13 +92,13 @@ It linear_search(It first, It last, T const& val) {
 
 There is no single correct solution, because there are many options. For example, you can try using the `void_t` approach, or the `constexpr`-function-based approach, to detect whether the necessary member exists.
 
-> Note: Visual Studio 2015 doesn't have full support for expression SFINAE yet, which means your code might fail if you use the standard `void_t` approach. Try a different compiler.
+> Note: Visual Studio 2015 doesn't have full support for expression SFINAE yet, which means your code might fail if you use the standard `void_t` approach. Try a different compiler, or Visual Studio 2015 Update 2.
 
 #### Lab 4: Trait and member detection -- strings aren't containers, arrays are
 
 The solution we built for detecting containers (`is_container`) is adequate for classic STL containers like `vector` and `map`, but it has two issues:
 
-* It thinks `string` is a container, because it has a nested `::iterator` type. Although it is technically correct, we don't really want to treat strings as containers for the purpose of serialization.
+* It thinks `string` is a container, because it has a nested `::iterator` type. Although it is technically correct, we don't really want to treat strings as containers for the purpose of serialization or debug-printing.
 
 * It thinks built-in arrays (like `int[5]`) are not containers, because they don't have a nested `::iterator` type. Again, for the purpose of serialization we would actually want to treat built-in arrays as containers.
 
@@ -129,7 +140,7 @@ void dump(std::ostream& os, T const& val) {
 }
 ```
 
-> Hint: specialize `is_container` for strings and arrays. Specifically, strings are instantiations of the `std::basic_string<CharT, Traits, Allocator>` template, and arrays can be detected by specializing for their type and element count.
+> Hint: specialize `is_container` for strings and arrays. Specifically, strings are instantiations of the `std::basic_string<CharT, Traits, Allocator>` template, and arrays can be detected by specializing for their type and element count: `template <typename T, size_t N> struct is_container<T[N]> ...`.
 
 #### Lab 5: Overload management with `enable_if`
 
